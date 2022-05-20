@@ -1,5 +1,9 @@
 /.vscode
 /callidus
-/prova.gml
 /testInstances
 /wrkdir
+
+/*.hg
+/*.xml
+/*.db
+/*.gml
