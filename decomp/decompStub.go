@@ -40,6 +40,7 @@ func ReadHypergraph(r io.Reader) Hypergraph {
 	return Hypergraph{
 		Graph:   hg,
 		Filters: nil,
+		Out:     []int{},
 		Enc:     parsedGraph.Encoding,
 		Dec:     dec,
 	}
@@ -95,20 +96,24 @@ func Decompose(hg Hypergraph, evl Evaluator) Hypertree {
 }
 
 func GetGMLString(hd Hypertree) string {
-	return toCemDecomp(&hd).ToGML()
+	return toCemDecomp(hd).ToGML()
 }
 
-func toCemDecomp(hd *Hypertree) lib.Decomp {
+func GetCemString(hd Hypertree) string {
+	return toCemDecomp(hd).String()
+}
+
+func toCemDecomp(hd Hypertree) lib.Decomp {
 	return lib.Decomp{
 		Root: makeCemDecomp(hd),
 	}
 }
 
-func makeCemDecomp(s *Hypertree) lib.Node {
+func makeCemDecomp(s Hypertree) lib.Node {
 	n := lib.Node{Bag: s.Bag, Cover: s.Cover}
 	var subtrees []lib.Node
-	for _, c := range s.children {
-		subtrees = append(subtrees, makeCemDecomp(c))
+	for _, c := range s.Children {
+		subtrees = append(subtrees, makeCemDecomp(*c))
 	}
 	n.Children = subtrees
 	return n

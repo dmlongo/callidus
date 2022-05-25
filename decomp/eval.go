@@ -8,7 +8,6 @@ import (
 
 type Evaluator interface {
 	Eval(tree Hypertree) int
-	//EvalNode(node Hypertree) int
 }
 
 type NumNodes struct {
@@ -20,26 +19,6 @@ func (ev *NumNodes) Eval(tree Hypertree) int {
 
 func (ev *NumNodes) EvalNode(node Hypertree) int {
 	return 1
-}
-
-type TrivialGrndEval struct {
-	Doms map[int]int
-}
-
-func (ev *TrivialGrndEval) Eval(tree Hypertree) int {
-	sum := 0
-	for _, n := range tree.dfsPre() {
-		sum += ev.EvalNode(*n)
-	}
-	return sum
-}
-
-func (ev *TrivialGrndEval) EvalNode(node Hypertree) int {
-	m := 1
-	for _, v := range node.Bag {
-		m *= ev.Doms[v]
-	}
-	return m
 }
 
 type naiveGrndEval struct {
@@ -64,7 +43,7 @@ func NewNaiveGrndEval(data db.Database, hg Hypergraph) Evaluator {
 
 func (ev *naiveGrndEval) Eval(tree Hypertree) int {
 	cost := 0
-	for _, n := range tree.dfsPre() {
+	for _, n := range tree.DfsPre() {
 		m := 1
 		for _, v := range n.Bag {
 			if attr, ok := ev.dec[v]; ok {
@@ -94,7 +73,7 @@ func NewOnePassUpEval(data db.Database, hg Hypergraph) Evaluator {
 
 func (ev *onePassUpEval) Eval(tree Hypertree) int {
 	cost := 0
-	for _, n := range tree.dfsPost() {
+	for _, n := range tree.DfsPost() {
 		cost += ev.evalNode(n)
 		ev.save(n.IntCover())
 		/*for _, child := range n.children {
@@ -175,13 +154,13 @@ func NewEvaluator(data db.Database, hg Hypergraph) DBEvaluator {
 func (ev *DBEvaluator) Eval(node *Hypertree) int {
 	cost := 0
 	var n *Hypertree
-	dfs := node.dfsPre()
+	dfs := node.DfsPre()
 	for len(dfs) > 0 {
 		n, dfs = dfs[len(dfs)-1], dfs[:len(dfs)-1]
 		ev.EvalNode(n)
 		ev.save(n.IntCover())
 		cost += ev.EvalNodeWithFilters(n)
-		for _, child := range n.children {
+		for _, child := range n.Children {
 			cost += ev.EvalEdge(n, child)
 		}
 	}

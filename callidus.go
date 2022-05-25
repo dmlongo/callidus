@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/dmlongo/callidus/db"
@@ -15,7 +14,7 @@ import (
 	"github.com/dmlongo/callidus/domains/datalog"
 	"github.com/dmlongo/callidus/domains/xcsp"
 	"github.com/dmlongo/callidus/solver"
-	"github.com/dmlongo/callidus/solver/nacre"
+	//"github.com/dmlongo/callidus/solver/nacre"
 )
 
 var cspIn string
@@ -67,7 +66,7 @@ func main() {
 	durs = append(durs, durConvDb)
 	fmt.Println("done in", durConvDb)
 
-	evl := initEvaluator(conv, hg, db)
+	evl := initEvaluator(hg, db)
 
 	fmt.Print("Coming up with a plan... ")
 	startDecomp := time.Now()
@@ -77,9 +76,9 @@ func main() {
 	fmt.Println("done in", durDecomp)
 
 	if onlyDecomp {
-		gmlRepr := decomp.GetGMLString(hd)
+		cemRepr := decomp.GetCemString(hd)
 		fmt.Println()
-		fmt.Println(gmlRepr)
+		fmt.Println("Decomposition:\n", cemRepr)
 
 		if gml != "" {
 			f, err := os.Create(gml)
@@ -88,6 +87,7 @@ func main() {
 			}
 
 			defer f.Close()
+			gmlRepr := decomp.GetGMLString(hd)
 			f.WriteString(gmlRepr)
 			f.Sync()
 		}
@@ -98,8 +98,7 @@ func main() {
 
 	fmt.Print("Solving instance... ")
 	startSol := time.Now()
-	plan := solv.MakePlan(hd)
-	sols := solv.Solve(plan, db)
+	sols := solv.Solve(hg, hd, db)
 	durSol := time.Since(startSol)
 	durs = append(durs, durSol)
 	fmt.Println("done in", durSol)
@@ -122,20 +121,10 @@ func main() {
 	}
 }
 
-func initEvaluator(conv domains.Converter, hg decomp.Hypergraph, data db.Database) decomp.Evaluator {
+func initEvaluator(hg decomp.Hypergraph, data db.Database) decomp.Evaluator {
 	switch instType {
 	case "csp":
-		xconv := conv.(*xcsp.HgtConverter)
-		doms := make(map[int]int)
-		for vv, dom := range xconv.Doms {
-			if v, ok := xconv.Hg.Enc[vv]; !ok {
-				panic(fmt.Errorf("cannot find encoding for %v", vv))
-			} else {
-				size := strings.Count(dom, " ") + 1
-				doms[v] = size
-			}
-		}
-		return &decomp.TrivialGrndEval{Doms: doms}
+		return decomp.NewNaiveGrndEval(data, hg)
 	case "rule":
 		if factsIn == "" {
 			return &decomp.NumNodes{} // todo TreeWidthEval
@@ -147,13 +136,14 @@ func initEvaluator(conv domains.Converter, hg decomp.Hypergraph, data db.Databas
 }
 
 func initSolver(conv domains.Converter, hg decomp.Hypergraph) solver.Solver {
-	switch instType {
+	/*switch instType {
 	case "csp":
 		xconv := conv.(*xcsp.HgtConverter)
 		return nacre.NewSolver(baseDir, xconv.Ctrs, xconv.Doms, hg.Dec)
 	default:
 		return nil
-	}
+	}*/
+	return solver.NewJoiner()
 }
 
 func setFlags() {

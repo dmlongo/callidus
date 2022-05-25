@@ -10,10 +10,8 @@ type Hypertree struct {
 	Filters []Filter
 
 	parent   *Hypertree
-	children []*Hypertree
+	Children []*Hypertree
 	fEdges   [][]Filter
-
-	//root *Hypertree
 }
 
 func NewHypertree(bag []int, cover lib.Edges, filts []Filter) *Hypertree {
@@ -23,7 +21,7 @@ func NewHypertree(bag []int, cover lib.Edges, filts []Filter) *Hypertree {
 		Filters: filts,
 
 		parent:   nil,
-		children: nil,
+		Children: nil,
 		fEdges:   nil,
 	}
 }
@@ -36,29 +34,29 @@ func (tree *Hypertree) IntCover() []int {
 	return cov
 }
 
-func (tree *Hypertree) dfsPre() []*Hypertree {
+func (tree *Hypertree) DfsPre() []*Hypertree {
 	var res []*Hypertree
 	var n *Hypertree
 	open := []*Hypertree{tree}
 	for len(open) > 0 {
 		n, open = open[len(open)-1], open[:len(open)-1]
 		res = append(res, n)
-		for i := range n.children {
-			open = append(open, n.children[len(n.children)-i-1])
+		for i := range n.Children {
+			open = append(open, n.Children[len(n.Children)-i-1])
 		}
 	}
 	return res
 }
 
-func (tree *Hypertree) dfsPost() []*Hypertree {
+func (tree *Hypertree) DfsPost() []*Hypertree {
 	var res []*Hypertree
 	var n *Hypertree
 	open := []*Hypertree{tree}
 	for len(open) > 0 {
 		n, open = open[len(open)-1], open[:len(open)-1]
 		res = append(res, n)
-		for i := range n.children {
-			open = append(open, n.children[i])
+		for i := range n.Children {
+			open = append(open, n.Children[i])
 		}
 	}
 	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
@@ -81,7 +79,7 @@ func (tree *Hypertree) Root() *Hypertree {
 }
 
 func (tree *Hypertree) Size() int {
-	return len(tree.Root().dfsPre())
+	return len(tree.Root().DfsPre())
 }
 
 func (tree *Hypertree) Successors() <-chan *Hypertree {
@@ -90,7 +88,7 @@ func (tree *Hypertree) Successors() <-chan *Hypertree {
 		defer close(out)
 
 		// todo no filters into account till now
-		for _, n := range tree.dfsPre() {
+		for _, n := range tree.DfsPre() {
 			if n.Cover.Len() > 1 {
 				pConn := []int{}
 				if n.parent != nil {
@@ -107,7 +105,7 @@ func (tree *Hypertree) Successors() <-chan *Hypertree {
 
 					canMakeNew := true
 					var pushes []*Hypertree
-					for j, s := range n.children {
+					for j, s := range n.Children {
 						conn := lib.Inter(n.Bag, s.Bag)
 						if !lib.Subset(conn, lambdaMin.Vertices()) {
 							canMakeNew = false
@@ -116,8 +114,8 @@ func (tree *Hypertree) Successors() <-chan *Hypertree {
 							// s votes a veto against moving e
 							// s is now the only one who can get e
 							canPushS := true
-							for k := j + 1; k < len(n.children); k++ { // children before j do not oppose
-								c := n.children[k]
+							for k := j + 1; k < len(n.Children); k++ { // children before j do not oppose
+								c := n.Children[k]
 								conn := lib.Inter(n.Bag, c.Bag)
 								if !lib.Subset(conn, lambdaMin.Vertices()) {
 									canPushS = false
@@ -148,20 +146,20 @@ func (tree *Hypertree) Successors() <-chan *Hypertree {
 
 func pushInto(n *Hypertree, m *Hypertree, lambdaMin lib.Edges, e lib.Edge) *Hypertree {
 	nn := NewHypertree(lambdaMin.Vertices(), lambdaMin, nil) // todo filters
-	for _, c := range n.children {
+	for _, c := range n.Children {
 		cc := copySubtree(c)
-		nn.children = append(nn.children, cc)
+		nn.Children = append(nn.Children, cc)
 		cc.parent = nn
 	}
 
 	lambda := lib.NewEdges(append(m.Cover.Slice(), e))
 	mm := NewHypertree(lambda.Vertices(), lambda, nil) // todo filters
-	nn.children = append(nn.children, mm)
+	nn.Children = append(nn.Children, mm)
 	mm.parent = nn
 
 	pp := copyDiffTree(n)
 	if pp != nil {
-		pp.children = append(pp.children, nn)
+		pp.Children = append(pp.Children, nn)
 		nn.parent = pp
 	}
 	return nn.Root()
@@ -169,20 +167,20 @@ func pushInto(n *Hypertree, m *Hypertree, lambdaMin lib.Edges, e lib.Edge) *Hype
 
 func makeNewNode(n *Hypertree, lambdaMin lib.Edges, e lib.Edge) *Hypertree {
 	nn := NewHypertree(lambdaMin.Vertices(), lambdaMin, nil) // todo filters
-	for _, c := range n.children {
+	for _, c := range n.Children {
 		cc := copySubtree(c)
-		nn.children = append(nn.children, cc)
+		nn.Children = append(nn.Children, cc)
 		cc.parent = nn
 	}
 
 	lambda := lib.NewEdges([]lib.Edge{e})
 	m := NewHypertree(lambda.Vertices(), lambda, nil) // todo filters
-	nn.children = append(nn.children, m)
+	nn.Children = append(nn.Children, m)
 	m.parent = nn
 
 	pp := copyDiffTree(n)
 	if pp != nil {
-		pp.children = append(pp.children, nn)
+		pp.Children = append(pp.Children, nn)
 		nn.parent = pp
 	}
 	return nn.Root()
@@ -204,7 +202,7 @@ func copyDiffTree(n *Hypertree) *Hypertree {
 		curr = NewHypertree(m.Bag, m.Cover, m.Filters)
 		curr.parent = p
 
-		for _, c := range m.children {
+		for _, c := range m.Children {
 			open = append(open, c)
 			parents = append(parents, curr)
 		}
@@ -223,7 +221,7 @@ func copySubtree(n *Hypertree) *Hypertree {
 		curr = NewHypertree(m.Bag, m.Cover, m.Filters)
 		curr.parent = p
 
-		for _, c := range m.children {
+		for _, c := range m.Children {
 			open = append(open, c)
 			parents = append(parents, curr)
 		}

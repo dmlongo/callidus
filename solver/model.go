@@ -5,13 +5,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cem-okulmus/BalancedGo/lib"
 	"github.com/dmlongo/callidus/db"
 	"github.com/dmlongo/callidus/decomp"
 )
 
 type Solver interface {
-	MakePlan(hd decomp.Hypertree) *Plan
-	Solve(pl *Plan, db db.Database) <-chan Solution
+	Solve(hg decomp.Hypergraph, hd decomp.Hypertree, data db.Database) <-chan Solution
 }
 
 type Plan struct {
@@ -20,7 +20,7 @@ type Plan struct {
 }
 
 type Command interface {
-	Exec()
+	Exec(done <-chan any) <-chan Solution
 }
 
 // Solution of a problem instance
@@ -61,6 +61,44 @@ func (sol Solution) Equals(oth Solution) bool {
 		}
 	}
 	return true
+}
+
+func Extend(s1, s2 Solution) Solution {
+	res := make(Solution)
+	for k1, v1 := range s1 {
+		if v2, ok := s2[k1]; ok {
+			if v1 != v2 {
+				panic(fmt.Errorf("no match for %v, %v", s1, s2))
+			}
+		}
+		res[k1] = v1
+	}
+	for k2, v2 := range s2 {
+		res[k2] = v2
+	}
+	return res
+}
+
+// pre: len(attrs) == len(tup)
+func ToSolution(attrs []string, tup db.Tuple) Solution {
+	s := make(Solution)
+	for i, a := range attrs {
+		s[a] = tup[i]
+	}
+	return s
+}
+
+func ToTables(edges lib.Edges, dec map[int]string, data db.Database) []*db.Table {
+	var tabs []*db.Table
+	for _, e := range edges.Slice() {
+		eName := dec[e.Name]
+		if t, ok := data[eName]; ok {
+			tabs = append(tabs, t)
+		} else {
+			panic(fmt.Errorf("table %v not in the database", eName))
+		}
+	}
+	return tabs
 }
 
 /*
